@@ -1,0 +1,135 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, In } from 'typeorm';
+import { Notification, NotificationType } from '../../entities/notification.entity';
+
+@Injectable()
+export class NotificationsService {
+  constructor(
+    @InjectRepository(Notification)
+    private notificationsRepository: Repository<Notification>,
+  ) {}
+
+  // 创建通知
+  async create(
+    userId: string,
+    type: NotificationType,
+    title: string,
+    content: string,
+    actorUserId?: string,
+    noteId?: string,
+    commentId?: string,
+  ) {
+    const notification = this.notificationsRepository.create({
+      user_id: userId,
+      type,
+      title,
+      content,
+      actor_user_id: actorUserId,
+      note_id: noteId,
+      comment_id: commentId,
+    });
+
+    return this.notificationsRepository.save(notification);
+  }
+
+  // 获取用户通知列表
+  async findAll(
+    userId: string,
+    type?: NotificationType,
+    page = 1,
+    limit = 20,
+  ) {
+    const skip = (page - 1) * limit;
+
+    const queryBuilder = this.notificationsRepository
+      .createQueryBuilder('notification')
+      .leftJoinAndSelect('notification.actorUser', 'actorUser')
+      .leftJoinAndSelect('notification.note', 'note')
+      .leftJoinAndSelect('notification.comment', 'comment')
+      .where('notification.user_id = :userId', { userId });
+
+    if (type) {
+      queryBuilder.andWhere('notification.type = :type', { type });
+    }
+
+    const [notifications, total] = await queryBuilder
+      .orderBy('notification.created_at', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+
+    const unreadCount = await this.notificationsRepository.count({
+      where: { user_id: userId, is_read: false },
+    });
+
+    return {
+      data: notifications,
+      total,
+      unreadCount,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  // 标记为已读
+  async markAsRead(userId: string, notificationId: string) {
+    const notification = await this.notificationsRepository.findOne({
+      where: { id: notificationId, user_id: userId },
+    });
+
+    if (!notification) {
+      throw new NotFoundException('通知不存在');
+    }
+
+    notification.is_read = true;
+    notification.read_at = new Date();
+    await this.notificationsRepository.save(notification);
+
+    return { message: '标记成功' };
+  }
+
+  // 批量标记为已读
+  async markAllAsRead(userId: string, ids?: string[]) {
+    const queryBuilder = this.notificationsRepository
+      .createQueryBuilder()
+      .update(Notification)
+      .set({ is_read: true, read_at: new Date() })
+      .where('user_id = :userId', { userId });
+
+    if (ids && ids.length > 0) {
+      queryBuilder.andWhere('id IN (:...ids)', { ids });
+    } else {
+      queryBuilder.andWhere('is_read = :isRead', { isRead: false });
+    }
+
+    await queryBuilder.execute();
+
+    return { message: '标记成功' };
+  }
+
+  // 获取未读数量
+  async getUnreadCount(userId: string) {
+    const count = await this.notificationsRepository.count({
+      where: { user_id: userId, is_read: false },
+    });
+
+    return { count };
+  }
+
+  // 删除通知
+  async remove(userId: string, notificationId: string) {
+    const notification = await this.notificationsRepository.findOne({
+      where: { id: notificationId, user_id: userId },
+    });
+
+    if (!notification) {
+      throw new NotFoundException('通知不存在');
+    }
+
+    await this.notificationsRepository.remove(notification);
+    return { message: '删除成功' };
+  }
+}
+
