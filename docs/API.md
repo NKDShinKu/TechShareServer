@@ -33,7 +33,7 @@
 大多数接口需要 JWT 认证，在请求头中添加：
 
 ```
-Authorization: Bearer <access_token>
+Authorization: Bearer <token>
 ```
 
 ## 分页参数

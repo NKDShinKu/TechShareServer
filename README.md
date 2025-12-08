@@ -11,6 +11,9 @@
 - **验证**: class-validator + class-transformer
 - **文件上传**: Multer
 
+## 数据库初始化
+`CREATE DATABASE techshare CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`
+
 ## 主要功能
 
 ### 1. 用户系统
