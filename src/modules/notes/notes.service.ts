@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, In } from 'typeorm';
+import { Repository, Like, In, Brackets } from 'typeorm';
 import { Note, NoteStatus } from '../../entities/note.entity';
 import { NoteVersion, AuditStatus } from '../../entities/note-version.entity';
 import { NoteVersionTag } from '../../entities/note-version-tag.entity';
@@ -348,10 +348,44 @@ export class NotesService {
       .leftJoinAndSelect('note.draftVersion', 'draftVersion')
       .leftJoinAndSelect('note.publishedVersion', 'publishedVersion')
       .leftJoinAndSelect('note.noteUserCategories', 'noteUserCategories')
+      .leftJoinAndSelect('note.versions', 'versions')
+      .leftJoinAndSelect('publishedVersion.category', 'publishedCategory')
+      .leftJoinAndSelect('publishedVersion.noteVersionTags', 'publishedNvt')
+      .leftJoinAndSelect('publishedNvt.tag', 'publishedTag')
+      .leftJoinAndSelect('draftVersion.category', 'draftCategory')
+      .leftJoinAndSelect('draftVersion.noteVersionTags', 'draftNvt')
+      .leftJoinAndSelect('draftNvt.tag', 'draftTag')
       .where('note.author_id = :userId', { userId });
 
     if (status) {
-      queryBuilder.andWhere('note.status = :status', { status });
+      const statuses = status.split(',');
+      // 区分 NoteStatus 和 AuditStatus
+      // NoteStatus: draft, published, private
+      // AuditStatus (via NoteVersion): pending, rejected
+      
+      const noteStatuses = statuses.filter(s => 
+        ['draft', 'published', 'private'].includes(s)
+      );
+      const auditStatuses = statuses.filter(s => 
+        ['pending', 'rejected'].includes(s)
+      );
+
+      if (noteStatuses.length > 0 || auditStatuses.length > 0) {
+        queryBuilder.andWhere(new Brackets((qb) => {
+          let hasCondition = false;
+          
+          if (noteStatuses.length > 0) {
+            qb.where('note.status IN (:...noteStatuses)', { noteStatuses });
+            hasCondition = true;
+          }
+          
+          // pending/rejected 状态需要查询 versions 表中是否存在对应状态的版本
+          if (auditStatuses.length > 0) {
+            const method = hasCondition ? 'orWhere' : 'where';
+            qb[method]('versions.audit_status IN (:...auditStatuses)', { auditStatuses });
+          }
+        }));
+      }
     }
 
     const notes = await queryBuilder

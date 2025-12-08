@@ -27,8 +27,6 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { UserRole } from '../../entities/user.entity';
 
-import { CreateUserCategoryDto } from './dto/create-user-category.dto';
-
 @ApiTags('笔记')
 @Controller('notes')
 export class NotesController {
@@ -149,12 +147,12 @@ export class NotesController {
   @ApiOperation({ summary: '创建用户分类文件夹' })
   createUserCategory(
     @CurrentUser('id') userId: string,
-    @Body() createUserCategoryDto: CreateUserCategoryDto,
+    @Body() body: { name: string; parent_id?: string },
   ) {
     return this.notesService.createUserCategory(
       userId,
-      createUserCategoryDto.name,
-      createUserCategoryDto.parent_id,
+      body.name,
+      body.parent_id,
     );
   }
 
