@@ -16,6 +16,7 @@ import { NoteLike } from './note-like.entity';
 import { NoteFavorite } from './note-favorite.entity';
 import { NoteAttachment } from './note-attachment.entity';
 import { UserNoteHistory } from './user-note-history.entity';
+import { NoteUserCategory } from './note-user-category.entity';
 
 export enum NoteStatus {
   DRAFT = 'draft',
@@ -97,5 +98,8 @@ export class Note {
 
   @OneToMany(() => UserNoteHistory, (history) => history.note)
   histories: UserNoteHistory[];
+
+  @OneToMany(() => NoteUserCategory, (nuc) => nuc.note)
+  noteUserCategories: NoteUserCategory[];
 }
 

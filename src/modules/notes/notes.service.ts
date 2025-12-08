@@ -64,19 +64,23 @@ export class NotesService {
     await this.notesRepository.save(note);
 
     // 如果指定了用户分类，建立关联
+    let noteUserCategories: NoteUserCategory[] = [];
     if (user_category_id) {
       const noteUserCategory = this.noteUserCategoryRepository.create({
         note_id: note.id,
         user_category_id,
       });
       await this.noteUserCategoryRepository.save(noteUserCategory);
+      noteUserCategories = [noteUserCategory];
     }
 
-    return { ...note, draftVersion };
+    return { ...note, draftVersion, noteUserCategories };
   }
 
   // 更新笔记（更新草稿版本）
   async update(userId: string, noteId: string, updateNoteDto: UpdateNoteDto) {
+    const { user_category_id, ...versionData } = updateNoteDto;
+
     const note = await this.notesRepository.findOne({
       where: { id: noteId },
       relations: ['draftVersion'],
@@ -88,6 +92,21 @@ export class NotesService {
 
     if (note.author_id !== userId) {
       throw new ForbiddenException('无权限修改此笔记');
+    }
+
+    // 处理用户分类更新
+    if (user_category_id !== undefined) {
+      // 1. 删除旧的分类关联
+      await this.noteUserCategoryRepository.delete({ note_id: noteId });
+      
+      // 2. 如果提供了新的分类ID，创建新关联
+      if (user_category_id && user_category_id !== 'default') {
+        const noteUserCategory = this.noteUserCategoryRepository.create({
+          note_id: noteId,
+          user_category_id,
+        });
+        await this.noteUserCategoryRepository.save(noteUserCategory);
+      }
     }
 
     // 如果没有草稿版本，从已发布版本克隆
@@ -110,10 +129,13 @@ export class NotesService {
 
     // 更新草稿版本
     if (note.draft_version_id) {
-      await this.noteVersionRepository.update(
-        note.draft_version_id,
-        updateNoteDto,
-      );
+      // 只有当 versionData 有内容时才更新版本
+      if (Object.keys(versionData).length > 0) {
+        await this.noteVersionRepository.update(
+          note.draft_version_id,
+          versionData,
+        );
+      }
     }
 
     await this.notesRepository.save(note);
@@ -325,6 +347,7 @@ export class NotesService {
       .createQueryBuilder('note')
       .leftJoinAndSelect('note.draftVersion', 'draftVersion')
       .leftJoinAndSelect('note.publishedVersion', 'publishedVersion')
+      .leftJoinAndSelect('note.noteUserCategories', 'noteUserCategories')
       .where('note.author_id = :userId', { userId });
 
     if (status) {

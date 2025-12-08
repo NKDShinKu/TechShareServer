@@ -7,7 +7,7 @@ INSERT INTO users (username, email, password_hash, nickname, role, status, creat
 VALUES (
   'admin',
   'admin@techshare.com',
-  '$2b$10$rOHkL0zvVfz9WNbL9L8xXOmYqC5k5bHXhQJmQOQoZxN3xY8XkzQWS',
+  '$2b$10$HsFIVlJZsCpaHxEwQ597o.2ph4GUc5.Qe.3JXwnuNRXb8I0h9v/fe',
   '管理员',
   'ADMIN',
   0,
@@ -25,7 +25,7 @@ INSERT INTO users (username, email, password_hash, nickname, role, status, creat
 VALUES (
   'testuser',
   'test@techshare.com',
-  '$2b$10$rOHkL0zvVfz9WNbL9L8xXOmYqC5k5bHXhQJmQOQoZxN3xY8XkzQWS',
+  '$2b$10$SnJRlzmzpS/i8agDf8YOWe7juxqnGCNgt/3ocwRnXwGVm4xeB0CQC',
   '测试用户',
   'USER',
   0,
