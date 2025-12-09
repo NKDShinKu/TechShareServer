@@ -34,7 +34,7 @@ export class NotesController {
 
   @Public()
   @Get()
-  @ApiOperation({ summary: '获取笔记列表' })
+  @ApiOperation({ summary: '获取笔记列表（只返回有已发布版本的笔记）' })
   findAll(@Query() queryDto: QueryNotesDto) {
     return this.notesService.findAll(queryDto);
   }
@@ -58,7 +58,7 @@ export class NotesController {
 
   @Put(':id')
   @ApiBearerAuth()
-  @ApiOperation({ summary: '更新笔记（草稿）' })
+  @ApiOperation({ summary: '更新笔记（草稿，不影响审核中或已发布内容）' })
   update(
     @CurrentUser('id') userId: string,
     @Param('id') id: string,
@@ -69,7 +69,7 @@ export class NotesController {
 
   @Post('publish')
   @ApiBearerAuth()
-  @ApiOperation({ summary: '发布笔记（提交审核）' })
+  @ApiOperation({ summary: '发布笔记（提交审核，从草稿复制到待审核版本）' })
   publish(
     @CurrentUser('id') userId: string,
     @Body() publishNoteDto: PublishNoteDto,
@@ -77,9 +77,29 @@ export class NotesController {
     return this.notesService.publish(userId, publishNoteDto);
   }
 
+  @Post(':id/cancel-pending')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '取消审核/删除提交（清空待审核版本）' })
+  cancelPending(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.notesService.cancelPending(userId, id);
+  }
+
+  @Post(':id/unpublish')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '删除发布（清空已发布版本指针，但保留版本历史）' })
+  unpublish(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.notesService.unpublish(userId, id);
+  }
+
   @Delete(':id')
   @ApiBearerAuth()
-  @ApiOperation({ summary: '删除笔记' })
+  @ApiOperation({ summary: '删除笔记（软删除整个笔记）' })
   remove(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.notesService.remove(userId, id);
   }
@@ -87,7 +107,7 @@ export class NotesController {
   @Get('user/my-notes')
   @ApiBearerAuth()
   @ApiOperation({ summary: '获取我的笔记' })
-  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'status', required: false, description: '状态筛选：draft,pending,rejected,published' })
   findUserNotes(
     @CurrentUser('id') userId: string,
     @Query('status') status?: string,
@@ -97,14 +117,14 @@ export class NotesController {
 
   @Get(':id/versions')
   @ApiBearerAuth()
-  @ApiOperation({ summary: '获取笔记版本列表' })
+  @ApiOperation({ summary: '获取笔记已发布版本列表（用于回滚）' })
   getVersions(@CurrentUser('id') userId: string, @Param('id') noteId: string) {
     return this.notesService.getVersions(userId, noteId);
   }
 
   @Post(':id/rollback/:versionId')
   @ApiBearerAuth()
-  @ApiOperation({ summary: '回滚到指定版本' })
+  @ApiOperation({ summary: '回滚到指定已发布版本' })
   rollback(
     @CurrentUser('id') userId: string,
     @Param('id') noteId: string,
@@ -128,17 +148,17 @@ export class NotesController {
     return this.notesService.getPendingNotes(page, limit);
   }
 
-  @Post('admin/audit/:versionId')
+  @Post('admin/audit/:noteId')
   @ApiBearerAuth()
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '审核笔记（管理员）' })
   audit(
     @CurrentUser('id') auditorId: string,
-    @Param('versionId') versionId: string,
+    @Param('noteId') noteId: string,
     @Body() auditNoteDto: AuditNoteDto,
   ) {
-    return this.notesService.audit(auditorId, versionId, auditNoteDto);
+    return this.notesService.audit(auditorId, noteId, auditNoteDto);
   }
 
   // 用户分类（文件夹）管理
@@ -184,4 +204,3 @@ export class NotesController {
     return this.notesService.removeUserCategory(userId, categoryId);
   }
 }
-

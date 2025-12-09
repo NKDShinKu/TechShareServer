@@ -1,6 +1,9 @@
 -- TechShareHub 初始化数据脚本
 -- 使用方法: mysql -u root -p techshare < docs/init.sql
 
+-- CREATE DATABASE techshare CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE techshare;
+
 -- 创建管理员账户
 -- 用户名: admin, 密码: admin123
 INSERT INTO users (username, email, password_hash, nickname, role, status, created_at, updated_at)

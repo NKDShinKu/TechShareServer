@@ -1,13 +1,12 @@
 import { IsString, IsNotEmpty, IsIn, IsOptional, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { AuditStatus } from '../../../entities/note-version.entity';
 
 export class AuditNoteDto {
-  @ApiProperty({ enum: AuditStatus, description: '审核状态' })
+  @ApiProperty({ enum: ['approved', 'rejected'], description: '审核结果' })
   @IsString()
   @IsNotEmpty()
-  @IsIn([AuditStatus.APPROVED, AuditStatus.REJECTED])
-  audit_status: AuditStatus;
+  @IsIn(['approved', 'rejected'])
+  audit_status: 'approved' | 'rejected';
 
   @ApiProperty({ description: '审核原因（拒绝时必填）', required: false })
   @IsString()
@@ -15,4 +14,3 @@ export class AuditNoteDto {
   @MaxLength(255)
   audit_reason?: string;
 }
-

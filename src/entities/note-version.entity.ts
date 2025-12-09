@@ -12,11 +12,11 @@ import { User } from './user.entity';
 import { Category } from './category.entity';
 import { NoteVersionTag } from './note-version-tag.entity';
 
-export enum AuditStatus {
-  DRAFT = 'draft',
-  PENDING = 'pending',
-  APPROVED = 'approved',
-  REJECTED = 'rejected',
+// 版本类型
+export enum VersionType {
+  DRAFT = 'draft',         // 草稿版本
+  PENDING = 'pending',     // 待审核版本
+  PUBLISHED = 'published', // 已发布版本
 }
 
 @Entity('note_versions')
@@ -48,14 +48,9 @@ export class NoteVersion {
   @Column({ type: 'tinyint', width: 1, default: 0 })
   allow_export: boolean;
 
-  @Column({ type: 'enum', enum: AuditStatus, default: AuditStatus.DRAFT })
-  audit_status: AuditStatus;
-
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  audit_reason: string;
-
-  @Column({ type: 'bigint', unsigned: true, nullable: true })
-  auditor_id: string;
+  // 版本类型
+  @Column({ type: 'enum', enum: VersionType, default: VersionType.DRAFT })
+  version_type: VersionType;
 
   @Column({ type: 'bigint', unsigned: true })
   created_by: string;
@@ -72,10 +67,6 @@ export class NoteVersion {
   @JoinColumn({ name: 'created_by' })
   creator: User;
 
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'auditor_id' })
-  auditor: User;
-
   @ManyToOne(() => Category, (category) => category.noteVersions)
   @JoinColumn({ name: 'category_id' })
   category: Category;
@@ -83,4 +74,3 @@ export class NoteVersion {
   @OneToMany(() => NoteVersionTag, (noteVersionTag) => noteVersionTag.version)
   noteVersionTags: NoteVersionTag[];
 }
-
