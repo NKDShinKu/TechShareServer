@@ -186,14 +186,14 @@ export class UsersService {
 
     const [favorites, total] = await this.noteFavoriteRepository.findAndCount({
       where: { user_id: userId },
-      relations: ['note', 'note.publishedVersion', 'note.author'],
+      relations: ['note', 'note.publishedVersion', 'note.publishedVersion.category', 'note.author'],
       order: { created_at: 'DESC' },
       skip,
       take: limit,
     });
 
     return {
-      data: favorites.map((fav) => fav.note),
+      data: favorites,
       total,
       page,
       limit,
@@ -207,14 +207,14 @@ export class UsersService {
 
     const [likes, total] = await this.noteLikeRepository.findAndCount({
       where: { user_id: userId },
-      relations: ['note', 'note.publishedVersion', 'note.author'],
+      relations: ['note', 'note.publishedVersion', 'note.publishedVersion.category', 'note.author'],
       order: { created_at: 'DESC' },
       skip,
       take: limit,
     });
 
     return {
-      data: likes.map((like) => like.note),
+      data: likes,
       total,
       page,
       limit,
@@ -228,17 +228,14 @@ export class UsersService {
 
     const [history, total] = await this.userNoteHistoryRepository.findAndCount({
       where: { user_id: userId },
-      relations: ['note', 'note.publishedVersion', 'note.author'],
+      relations: ['note', 'note.publishedVersion', 'note.publishedVersion.category', 'note.author'],
       order: { viewed_at: 'DESC' },
       skip,
       take: limit,
     });
 
     return {
-      data: history.map((h) => ({
-        ...h.note,
-        viewed_at: h.viewed_at,
-      })),
+      data: history,
       total,
       page,
       limit,
