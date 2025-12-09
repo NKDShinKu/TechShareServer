@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   UnauthorizedException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -81,6 +82,16 @@ export class UsersService {
 
     if (!user) {
       throw new NotFoundException('用户不存在');
+    }
+
+    // 如果更新邮箱,检查邮箱是否已被使用
+    if (updateUserDto.email && updateUserDto.email !== user.email) {
+      const existingUser = await this.usersRepository.findOne({
+        where: { email: updateUserDto.email },
+      });
+      if (existingUser) {
+        throw new ConflictException('该邮箱已被使用');
+      }
     }
 
     Object.assign(user, updateUserDto);
