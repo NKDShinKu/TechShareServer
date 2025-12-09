@@ -462,24 +462,30 @@ export class NotesService {
     }
 
     // 记录浏览历史并增加阅读量
-    if (userId && note.published_version_id) {
-      const existingHistory = await this.userNoteHistoryRepository.findOne({
-        where: { user_id: userId, note_id: id },
-      });
+    if (note.published_version_id) {
+      // 每次访问都增加阅读数
+      note.views += 1;
+      await this.notesRepository.save(note);
 
-      if (existingHistory) {
-        existingHistory.viewed_at = new Date();
-        await this.userNoteHistoryRepository.save(existingHistory);
-      } else {
-        const history = this.userNoteHistoryRepository.create({
-          user_id: userId,
-          note_id: id,
-          viewed_at: new Date(),
+      // 如果用户已登录，记录浏览历史
+      if (userId) {
+        const existingHistory = await this.userNoteHistoryRepository.findOne({
+          where: { user_id: userId, note_id: id },
         });
-        await this.userNoteHistoryRepository.save(history);
 
-        note.views += 1;
-        await this.notesRepository.save(note);
+        if (existingHistory) {
+          // 已访问过，只更新时间
+          existingHistory.viewed_at = new Date();
+          await this.userNoteHistoryRepository.save(existingHistory);
+        } else {
+          // 首次访问，记录历史
+          const history = this.userNoteHistoryRepository.create({
+            user_id: userId,
+            note_id: id,
+            viewed_at: new Date(),
+          });
+          await this.userNoteHistoryRepository.save(history);
+        }
       }
     }
 
