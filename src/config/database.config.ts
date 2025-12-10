@@ -21,6 +21,6 @@ export const getDatabaseConfig = (
       ? configService.get('TYPEORM_LOGGING') === 'true'
       : configService.get('NODE_ENV') === 'development',
   charset: 'utf8mb4',
-  timezone: '+00:00', // UTC
+  timezone: '+08:00', // Asia/Shanghai (北京时间)
 });
 
