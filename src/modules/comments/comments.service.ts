@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In, IsNull } from 'typeorm';
 import { Comment } from '../../entities/comment.entity';
 import { CommentLike } from '../../entities/comment-like.entity';
 import { CommentMention } from '../../entities/comment-mention.entity';
@@ -84,21 +84,61 @@ export class CommentsService {
   async findByNote(noteId: string, page = 1, limit = 10) {
     const skip = (page - 1) * limit;
 
-    // 获取一级评论
-    const [comments, total] = await this.commentsRepository.findAndCount({
-      where: { note_id: noteId, parent_id: null as any, is_deleted: false },
-      relations: ['author', 'replies', 'replies.author'],
-      order: { created_at: 'DESC' },
+    // 获取根评论（只返回 root_id 为 null 的评论）
+    const [rootComments, totalRootComments] = await this.commentsRepository.findAndCount({
+      where: { note_id: noteId, root_id: IsNull(), is_deleted: false },
+      relations: ['author'],
+      order: { created_at: 'ASC' },
       skip,
       take: limit,
     });
 
+    // 统计该笔记的所有评论总数（包括根评论和回复）
+    const totalAllComments = await this.commentsRepository.count({
+      where: { note_id: noteId, is_deleted: false },
+    });
+
+    // 如果没有根评论，直接返回
+    if (rootComments.length === 0) {
+      return {
+        data: [],
+        total: totalRootComments,
+        totalComments: totalAllComments,
+        page,
+        limit,
+        totalPages: Math.ceil(totalRootComments / limit),
+      };
+    }
+
+    // 获取这些根评论的所有回复（平铺结构）
+    const rootCommentIds = rootComments.map((c) => c.id);
+    const replies = await this.commentsRepository.find({
+      where: {
+        root_id: In(rootCommentIds),
+        is_deleted: false,
+      },
+      relations: ['author'],
+      order: { created_at: 'ASC' },
+    });
+
+    // 构建评论树：将回复添加到对应的根评论下
+    const commentsWithReplies = rootComments.map((rootComment) => {
+      const commentReplies = replies.filter(
+        (reply) => reply.root_id === rootComment.id,
+      );
+      return {
+        ...rootComment,
+        replies: commentReplies,
+      };
+    });
+
     return {
-      data: comments,
-      total,
+      data: commentsWithReplies,
+      total: totalRootComments, // 根评论数量（用于分页）
+      totalComments: totalAllComments, // 所有评论数量（根评论+回复）
       page,
       limit,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.ceil(totalRootComments / limit),
     };
   }
 
