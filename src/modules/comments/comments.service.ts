@@ -13,6 +13,8 @@ import { Note } from '../../entities/note.entity';
 import { NoteLike } from '../../entities/note-like.entity';
 import { NoteFavorite } from '../../entities/note-favorite.entity';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../../entities/notification.entity';
 
 @Injectable()
 export class CommentsService {
@@ -29,6 +31,7 @@ export class CommentsService {
     private noteLikesRepository: Repository<NoteLike>,
     @InjectRepository(NoteFavorite)
     private noteFavoritesRepository: Repository<NoteFavorite>,
+    private notificationsService: NotificationsService,
   ) {}
 
   // 创建评论
@@ -75,7 +78,37 @@ export class CommentsService {
     note.comments_count += 1;
     await this.notesRepository.save(note);
 
-    // TODO: 创建通知
+    // 创建通知：评论或回复
+    if (userId !== note.author_id) {
+      if (parent_id) {
+        // 这是回复评论
+        const parentComment = await this.commentsRepository.findOne({
+          where: { id: parent_id },
+        });
+        if (parentComment && parentComment.author_id !== userId) {
+          await this.notificationsService.create(
+            parentComment.author_id,
+            NotificationType.REPLY,
+            '收到新回复',
+            `回复了你的评论：${content.substring(0, 50)}`,
+            userId,
+            note_id,
+            comment.id,
+          );
+        }
+      } else {
+        // 这是评论笔记
+        await this.notificationsService.create(
+          note.author_id,
+          NotificationType.COMMENT,
+          '收到新评论',
+          `评论了你的笔记：${content.substring(0, 50)}`,
+          userId,
+          note_id,
+          comment.id,
+        );
+      }
+    }
 
     return comment;
   }
@@ -239,7 +272,22 @@ export class CommentsService {
       note.likes_count += 1;
       await this.notesRepository.save(note);
 
-      // TODO: 创建通知
+      // 创建通知：点赞笔记（不给自己发通知）
+      if (userId !== note.author_id) {
+        const noteWithVersion = await this.notesRepository.findOne({
+          where: { id: noteId },
+          relations: ['publishedVersion'],
+        });
+        const noteTitle = noteWithVersion?.publishedVersion?.title || '你的笔记';
+        await this.notificationsService.create(
+          note.author_id,
+          NotificationType.LIKE,
+          '收到新点赞',
+          `赞了你的笔记：${noteTitle}`,
+          userId,
+          noteId,
+        );
+      }
 
       return { liked: true, count: note.likes_count };
     }
@@ -276,7 +324,22 @@ export class CommentsService {
       note.favorites_count += 1;
       await this.notesRepository.save(note);
 
-      // TODO: 创建通知
+      // 创建通知：收藏笔记（不给自己发通知）
+      if (userId !== note.author_id) {
+        const noteWithVersion = await this.notesRepository.findOne({
+          where: { id: noteId },
+          relations: ['publishedVersion'],
+        });
+        const noteTitle = noteWithVersion?.publishedVersion?.title || '你的笔记';
+        await this.notificationsService.create(
+          note.author_id,
+          NotificationType.FAVORITE,
+          '收到新收藏',
+          `收藏了你的笔记：${noteTitle}`,
+          userId,
+          noteId,
+        );
+      }
 
       return { favorited: true, count: note.favorites_count };
     }

@@ -8,6 +8,7 @@ import { CommentMention } from '../../entities/comment-mention.entity';
 import { Note } from '../../entities/note.entity';
 import { NoteLike } from '../../entities/note-like.entity';
 import { NoteFavorite } from '../../entities/note-favorite.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { NoteFavorite } from '../../entities/note-favorite.entity';
       NoteLike,
       NoteFavorite,
     ]),
+    NotificationsModule,
   ],
   controllers: [CommentsController],
   providers: [CommentsService],

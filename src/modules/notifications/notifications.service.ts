@@ -46,6 +46,7 @@ export class NotificationsService {
       .createQueryBuilder('notification')
       .leftJoinAndSelect('notification.actorUser', 'actorUser')
       .leftJoinAndSelect('notification.note', 'note')
+      .leftJoinAndSelect('note.publishedVersion', 'publishedVersion')
       .leftJoinAndSelect('notification.comment', 'comment')
       .where('notification.user_id = :userId', { userId });
 
@@ -111,11 +112,39 @@ export class NotificationsService {
 
   // 获取未读数量
   async getUnreadCount(userId: string) {
-    const count = await this.notificationsRepository.count({
-      where: { user_id: userId, is_read: false },
-    });
+    const [total, system, comment, reply, like, favorite, mention] = await Promise.all([
+      this.notificationsRepository.count({
+        where: { user_id: userId, is_read: false },
+      }),
+      this.notificationsRepository.count({
+        where: { user_id: userId, is_read: false, type: NotificationType.SYSTEM },
+      }),
+      this.notificationsRepository.count({
+        where: { user_id: userId, is_read: false, type: NotificationType.COMMENT },
+      }),
+      this.notificationsRepository.count({
+        where: { user_id: userId, is_read: false, type: NotificationType.REPLY },
+      }),
+      this.notificationsRepository.count({
+        where: { user_id: userId, is_read: false, type: NotificationType.LIKE },
+      }),
+      this.notificationsRepository.count({
+        where: { user_id: userId, is_read: false, type: NotificationType.FAVORITE },
+      }),
+      this.notificationsRepository.count({
+        where: { user_id: userId, is_read: false, type: NotificationType.MENTION },
+      }),
+    ]);
 
-    return { count };
+    return {
+      count: total, // 兼容旧字段
+      total,
+      system,
+      comments: comment + reply, // 合并评论和回复
+      likes: like,
+      favorites: favorite,
+      mentions: mention,
+    };
   }
 
   // 删除通知
