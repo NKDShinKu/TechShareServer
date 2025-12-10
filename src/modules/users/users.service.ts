@@ -131,7 +131,7 @@ export class UsersService {
     user.avatar_url = avatarUrl;
     await this.usersRepository.save(user);
 
-    return { avatar_url: avatarUrl };
+    return { url: avatarUrl };
   }
 
   async getSettings(userId: string) {

@@ -26,11 +26,15 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { UploadService } from '../upload/upload.service';
 
 @ApiTags('用户')
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly uploadService: UploadService,
+  ) {}
 
   @Public()
   @Get(':id')
@@ -70,14 +74,15 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '上传头像' })
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('avatar'))
+  @UseInterceptors(FileInterceptor('file'))
   async uploadAvatar(
     @CurrentUser('id') userId: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    // TODO: 实现文件上传逻辑
-    const avatarUrl = `/uploads/avatars/${file.filename}`;
-    return this.usersService.updateAvatar(userId, avatarUrl);
+    // 使用 UploadService 处理文件上传
+    const uploadResult = await this.uploadService.uploadAvatar(file);
+    // 更新用户头像 URL
+    return this.usersService.updateAvatar(userId, uploadResult.url);
   }
 
   @Get('me/settings')
