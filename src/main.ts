@@ -10,7 +10,11 @@ async function bootstrap() {
 
   // 启用 CORS
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173' || 'https://apifox.com',
+    origin: [
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'https://apifox.com',
+    ],
     credentials: true,
   });
 

@@ -8,6 +8,7 @@ import {
   Body,
   ParseIntPipe,
   DefaultValuePipe,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,6 +19,9 @@ import {
 import { NotificationsService } from './notifications.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { NotificationType } from '../../entities/notification.entity';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { UserRole } from '../../entities/user.entity';
 
 @ApiTags('通知')
 @ApiBearerAuth()
@@ -74,6 +78,23 @@ export class NotificationsController {
     @Param('id') notificationId: string,
   ) {
     return this.notificationsService.remove(userId, notificationId);
+  }
+
+  @Post('admin/broadcast')
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: '发送系统广播（管理员）' })
+  async broadcast(
+    @CurrentUser('id') userId: string,
+    @Body() body: { title: string; content: string },
+  ) {
+    return this.notificationsService.broadcast(
+      NotificationType.SYSTEM,
+      body.title,
+      body.content,
+      userId,
+    );
   }
 }
 

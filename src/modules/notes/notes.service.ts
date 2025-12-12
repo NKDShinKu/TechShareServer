@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, Not } from 'typeorm';
+import { Repository, IsNull, Not, Brackets } from 'typeorm';
 import { Note, NoteStatus } from '../../entities/note.entity';
 import { NoteVersion, VersionType } from '../../entities/note-version.entity';
 import { NoteVersionTag } from '../../entities/note-version-tag.entity';
@@ -765,5 +765,46 @@ export class NotesService {
 
     await this.userCategoryRepository.remove(category);
     return { message: '删除成功' };
+  }
+
+  // Admin: Get notes by status
+  async getAdminNotes(page = 1, limit = 10, status?: string, search?: string) {
+    const skip = (page - 1) * limit;
+    const query = this.notesRepository.createQueryBuilder('note')
+      .leftJoinAndSelect('note.author', 'author')
+      .leftJoinAndSelect('note.publishedVersion', 'publishedVersion')
+      .leftJoinAndSelect('note.pendingVersion', 'pendingVersion')
+      .leftJoinAndSelect('note.draftVersion', 'draftVersion')
+      .leftJoinAndSelect('publishedVersion.category', 'publishedCategory')
+      .leftJoinAndSelect('pendingVersion.category', 'pendingCategory');
+
+    if (status) {
+      query.where('note.status = :status', { status });
+    }
+    
+    if (search) {
+      query.andWhere(
+        new Brackets((qb) => {
+          qb.where('publishedVersion.title LIKE :search')
+            .orWhere('pendingVersion.title LIKE :search')
+            .orWhere('draftVersion.title LIKE :search');
+        }),
+        { search: `%${search}%` },
+      );
+    }
+
+    const [notes, total] = await query
+      .orderBy('note.created_at', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+
+    return {
+      data: notes,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 }

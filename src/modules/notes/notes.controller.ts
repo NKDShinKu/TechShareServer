@@ -8,6 +8,8 @@ import {
   Param,
   Query,
   UseGuards,
+  DefaultValuePipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -202,5 +204,23 @@ export class NotesController {
     @Param('id') categoryId: string,
   ) {
     return this.notesService.removeUserCategory(userId, categoryId);
+  }
+
+  @Get('admin/list')
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: '获取笔记列表（管理员）' })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'search', required: false })
+  getAdminNotes(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.notesService.getAdminNotes(page, limit, status, search);
   }
 }

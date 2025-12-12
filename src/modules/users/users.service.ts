@@ -8,7 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { User } from '../../entities/user.entity';
+import { User, UserRole } from '../../entities/user.entity';
 import { UserSetting } from '../../entities/user-setting.entity';
 import { NoteLike } from '../../entities/note-like.entity';
 import { NoteFavorite } from '../../entities/note-favorite.entity';
@@ -401,5 +401,76 @@ export class UsersService {
       topNotes,
       categoryDistribution,
     };
+  }
+
+  // Admin: Get all users
+  async findAllUsers(page = 1, limit = 10, search?: string) {
+    const skip = (page - 1) * limit;
+    const query = this.usersRepository.createQueryBuilder('user');
+
+    if (search) {
+      query.where('user.username LIKE :search OR user.nickname LIKE :search OR user.email LIKE :search', { search: `%${search}%` });
+    }
+
+    const [users, total] = await query
+      .orderBy('user.created_at', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+
+    return {
+      data: users,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  // Admin: Update user role
+  async updateUserRole(userId: string, role: UserRole) {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    user.role = role;
+    return this.usersRepository.save(user);
+  }
+
+  // Admin: Dashboard Stats
+  async getDashboardStats() {
+    const totalUsers = await this.usersRepository.count();
+    const totalNotes = await this.notesRepository.count();
+    const publishedNotes = await this.notesRepository.count({ where: { status: NoteStatus.PUBLISHED } });
+    const pendingNotes = await this.notesRepository.count({ where: { status: NoteStatus.PENDING } });
+    const rejectedNotes = await this.notesRepository.count({ where: { status: NoteStatus.REJECTED } });
+
+    return {
+      totalUsers,
+      totalNotes,
+      publishedNotes,
+      pendingNotes,
+      rejectedNotes,
+    };
+  }
+
+  // Admin: Update user profile
+  async adminUpdateProfile(userId: string, updateUserDto: UpdateUserDto) {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    Object.assign(user, updateUserDto);
+    return this.usersRepository.save(user);
+  }
+
+  // Admin: Reset password
+  async adminResetPassword(userId: string, password: string) {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    user.password_hash = await bcrypt.hash(password, 10);
+    return this.usersRepository.save(user);
   }
 }

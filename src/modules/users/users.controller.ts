@@ -11,6 +11,7 @@ import {
   UploadedFile,
   ParseIntPipe,
   DefaultValuePipe,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -27,6 +28,9 @@ import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { UploadService } from '../upload/upload.service';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { UserRole } from '../../entities/user.entity';
 
 @ApiTags('用户')
 @Controller('users')
@@ -190,6 +194,67 @@ export class UsersController {
     @Query('noteId') noteId?: string,
   ) {
     return this.usersService.deleteHistory(userId, noteId);
+  }
+
+  @Get('admin/list')
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: '获取所有用户（管理员）' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  async findAllUsers(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('search') search?: string,
+  ) {
+    return this.usersService.findAllUsers(page, limit, search);
+  }
+
+  @Put('admin/:id/role')
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: '修改用户角色（管理员）' })
+  async updateUserRole(
+    @Param('id') userId: string,
+    @Body() body: { role: UserRole },
+  ) {
+    return this.usersService.updateUserRole(userId, body.role);
+  }
+
+  @Get('admin/stats')
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: '获取仪表盘统计数据（管理员）' })
+  async getDashboardStats() {
+    return this.usersService.getDashboardStats();
+  }
+
+  @Put('admin/:id/profile')
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: '修改用户信息（管理员）' })
+  async adminUpdateProfile(
+    @Param('id') userId: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    return this.usersService.adminUpdateProfile(userId, updateUserDto);
+  }
+
+  @Post('admin/:id/reset-password')
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: '重置用户密码（管理员）' })
+  async adminResetPassword(
+    @Param('id') userId: string,
+    @Body() body: { password: string },
+  ) {
+    return this.usersService.adminResetPassword(userId, body.password);
   }
 }
 

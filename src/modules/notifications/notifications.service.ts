@@ -166,5 +166,20 @@ export class NotificationsService {
     await this.notificationsRepository.remove(notification);
     return { message: '删除成功' };
   }
+
+  // Broadcast notification to all users
+  async broadcast(
+    type: NotificationType,
+    title: string,
+    content: string,
+    actorUserId?: string,
+  ) {
+    await this.notificationsRepository.query(`
+      INSERT INTO notifications (user_id, type, title, content, actor_user_id, created_at)
+      SELECT id, ?, ?, ?, ?, NOW() FROM users
+    `, [type, title, content, actorUserId || null]);
+    
+    return { message: 'Broadcast successful' };
+  }
 }
 
