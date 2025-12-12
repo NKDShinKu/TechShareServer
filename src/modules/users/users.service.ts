@@ -6,13 +6,14 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '../../entities/user.entity';
 import { UserSetting } from '../../entities/user-setting.entity';
 import { NoteLike } from '../../entities/note-like.entity';
 import { NoteFavorite } from '../../entities/note-favorite.entity';
 import { UserNoteHistory } from '../../entities/user-note-history.entity';
+import { Note, NoteStatus } from '../../entities/note.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
@@ -30,6 +31,8 @@ export class UsersService {
     private noteFavoriteRepository: Repository<NoteFavorite>,
     @InjectRepository(UserNoteHistory)
     private userNoteHistoryRepository: Repository<UserNoteHistory>,
+    @InjectRepository(Note)
+    private notesRepository: Repository<Note>,
   ) {}
 
   async findOne(id: string) {
@@ -176,7 +179,7 @@ export class UsersService {
       .leftJoinAndSelect('note.publishedVersion', 'version')
       .leftJoinAndSelect('version.category', 'category')
       .where('user.id = :userId', { userId })
-      .andWhere('note.status = :status', { status: 'published' })
+      .andWhere('note.status = :status', { status: NoteStatus.PUBLISHED })
       .orderBy('note.published_at', 'DESC')
       .skip(skip)
       .take(limit)
@@ -267,5 +270,134 @@ export class UsersService {
 
     return { message: '删除成功' };
   }
-}
 
+  // 获取创作者数据统计
+  async getCreatorStats(userId: string) {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+
+    // 统计用户的所有已发布笔记
+    const notes = await this.notesRepository.find({
+      where: {
+        author_id: userId,
+        status: NoteStatus.PUBLISHED,
+        deleted_at: IsNull(),
+      },
+    });
+
+    // 计算总数
+    const totalViews = notes.reduce((sum, note) => sum + note.views, 0);
+    const totalLikes = notes.reduce((sum, note) => sum + note.likes_count, 0);
+    const totalComments = notes.reduce((sum, note) => sum + note.comments_count, 0);
+    const totalFavorites = notes.reduce((sum, note) => sum + note.favorites_count, 0);
+
+    // 计算创作天数
+    const joinDays = Math.floor(
+      (Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    return {
+      totalArticles: notes.length,
+      totalViews,
+      totalLikes,
+      totalComments,
+      totalFavorites,
+      joinDays,
+    };
+  }
+
+  // 获取创作者图表数据
+  async getCreatorChartData(userId: string) {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+
+    // 获取最近30天的日期
+    const dates: string[] = [];
+    const now = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      dates.push(date.toISOString().split('T')[0]);
+    }
+
+    // 获取用户所有已发布笔记
+    const notes = await this.notesRepository.find({
+      where: {
+        author_id: userId,
+        status: NoteStatus.PUBLISHED,
+        deleted_at: IsNull(),
+      },
+      relations: ['publishedVersion', 'publishedVersion.category'],
+    });
+
+    // 统计每天的发布数量
+    const publishTrend = dates.map((date) => {
+      const count = notes.filter((note) => {
+        if (!note.published_at) return false;
+        const publishDate = new Date(note.published_at)
+          .toISOString()
+          .split('T')[0];
+        return publishDate === date;
+      }).length;
+      return count;
+    });
+
+    // 统计每天的累计阅读量
+    const viewsTrend = dates.map((date, index) => {
+      // 计算该日期及之前发布的所有文章的总阅读量
+      const cumulativeViews = notes
+        .filter((note) => {
+          if (!note.published_at) return false;
+          const publishDate = new Date(note.published_at);
+          const currentDate = new Date(date);
+          return publishDate <= currentDate;
+        })
+        .reduce((sum, note) => sum + note.views, 0);
+      return cumulativeViews;
+    });
+
+    // 获取文章数据对比（取前10篇）
+    const topNotes = notes
+      .sort((a, b) => b.views - a.views)
+      .slice(0, 10)
+      .map((note) => ({
+        title: note.publishedVersion?.title || '未命名',
+        views: note.views,
+        likes: note.likes_count,
+        comments: note.comments_count,
+        favorites: note.favorites_count,
+      }));
+
+    // 统计分类分布
+    const categoryMap = new Map<string, number>();
+    notes.forEach((note) => {
+      const categoryName =
+        note.publishedVersion?.category?.name || '未分类';
+      categoryMap.set(categoryName, (categoryMap.get(categoryName) || 0) + 1);
+    });
+
+    const categoryDistribution = Array.from(categoryMap.entries()).map(
+      ([name, value]) => ({
+        name,
+        value,
+      }),
+    );
+
+    return {
+      publishTrend: {
+        dates,
+        values: publishTrend,
+      },
+      viewsTrend: {
+        dates,
+        values: viewsTrend,
+      },
+      topNotes,
+      categoryDistribution,
+    };
+  }
+}

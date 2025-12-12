@@ -7,6 +7,7 @@ import { UserSetting } from '../../entities/user-setting.entity';
 import { NoteLike } from '../../entities/note-like.entity';
 import { NoteFavorite } from '../../entities/note-favorite.entity';
 import { UserNoteHistory } from '../../entities/user-note-history.entity';
+import { Note } from '../../entities/note.entity';
 import { UploadModule } from '../upload/upload.module';
 
 @Module({
@@ -17,6 +18,7 @@ import { UploadModule } from '../upload/upload.module';
       NoteLike,
       NoteFavorite,
       UserNoteHistory,
+      Note,
     ]),
     UploadModule,
   ],

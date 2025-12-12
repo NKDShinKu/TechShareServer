@@ -120,6 +120,33 @@ export class UsersController {
   @ApiOperation({ summary: '获取用户收藏列表' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  async getMyFavorites(
+    @CurrentUser('id') userId: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    return this.usersService.getUserFavorites(userId, page, limit);
+  }
+
+  @Get('me/creator-stats')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '获取创作者数据统计' })
+  async getCreatorStats(@CurrentUser('id') userId: string) {
+    return this.usersService.getCreatorStats(userId);
+  }
+
+  @Get('me/creator-chart-data')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '获取创作者图表数据' })
+  async getCreatorChartData(@CurrentUser('id') userId: string) {
+    return this.usersService.getCreatorChartData(userId);
+  }
+
+  @Get('me/user-favorites')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '获取用户收藏列表详情' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   async getUserFavorites(
     @CurrentUser('id') userId: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
