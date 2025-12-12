@@ -28,16 +28,18 @@ export class NotificationsController {
   @Get()
   @ApiOperation({ summary: '获取通知列表' })
   @ApiQuery({ name: 'type', required: false, enum: NotificationType })
-  @ApiQuery({ name: 'types', required: false, isArray: true, type: String })
+  @ApiQuery({ name: 'types', required: false, description: '多个类型用逗号分隔，如: comment,reply' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   findAll(
     @CurrentUser('id') userId: string,
     @Query('type') type?: NotificationType,
-    @Query('types') types?: NotificationType[],
+    @Query('types') typesParam?: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
   ) {
+    // 将逗号分隔的字符串转换为数组
+    const types = typesParam ? typesParam.split(',') as NotificationType[] : undefined;
     return this.notificationsService.findAll(userId, type, types, page, limit);
   }
 

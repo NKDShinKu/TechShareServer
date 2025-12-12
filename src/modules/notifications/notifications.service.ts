@@ -53,7 +53,9 @@ export class NotificationsService {
 
     // 支持查询单个类型或多个类型
     if (types && types.length > 0) {
-      queryBuilder.andWhere('notification.type IN (:...types)', { types });
+      // 确保 types 是数组
+      const typeArray = Array.isArray(types) ? types : [types];
+      queryBuilder.andWhere('notification.type IN (:...types)', { types: typeArray });
     } else if (type) {
       queryBuilder.andWhere('notification.type = :type', { type });
     }

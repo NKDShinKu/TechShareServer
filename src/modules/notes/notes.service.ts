@@ -185,7 +185,7 @@ export class NotesService {
   // ==================== 发布笔记（提交审核） ====================
 
   async publish(userId: string, publishNoteDto: PublishNoteDto) {
-    const { note_id, category_id, tag_ids, cover_url, excerpt, allow_export } = publishNoteDto;
+    const { note_id, category_id, tag_ids, cover_url, excerpt, allow_export, version_id } = publishNoteDto;
 
     const note = await this.notesRepository.findOne({
       where: { id: note_id },
@@ -200,6 +200,39 @@ export class NotesService {
       throw new ForbiddenException('无权限发布此笔记');
     }
 
+    // 如果指定了历史版本ID，则直接发布该版本（不需审核）
+    if (version_id) {
+      const historyVersion = await this.noteVersionRepository.findOne({
+        where: { 
+          id: version_id, 
+          note_id: note_id,
+          version_type: VersionType.PUBLISHED,
+        },
+        relations: ['noteVersionTags'],
+      });
+
+      if (!historyVersion) {
+        throw new NotFoundException('指定的历史版本不存在');
+      }
+
+      // 删除旧的待审核版本（如果有）
+      if (note.pending_version_id) {
+        await this.noteVersionTagRepository.delete({ version_id: note.pending_version_id });
+        await this.noteVersionRepository.delete({ id: note.pending_version_id });
+      }
+
+      // 直接设置为已发布状态
+      note.published_version_id = version_id;
+      note.pending_version_id = null;
+      note.audit_reason = null;
+      note.status = NoteStatus.PUBLISHED;
+      note.published_at = new Date();
+      await this.notesRepository.save(note);
+
+      return { message: '发布成功', note };
+    }
+
+    // 否则按原有逻辑：从草稿创建待审核版本
     if (!note.draftVersion) {
       throw new BadRequestException('没有可发布的草稿版本');
     }
@@ -309,10 +342,18 @@ export class NotesService {
       throw new BadRequestException('笔记未发布');
     }
 
-    // 清空已发布版本指针（不删除版本记录，保留历史）
+    // 清空已发布版本指针和待审核版本指针（不删除版本记录，保留历史）
+    // 删除待审核版本（如果有）
+    if (note.pending_version_id) {
+      await this.noteVersionTagRepository.delete({ version_id: note.pending_version_id });
+      await this.noteVersionRepository.delete({ id: note.pending_version_id });
+    }
+
     note.published_version_id = null;
     note.published_at = null;
-    note.status = this.calculateStatus(note);
+    note.pending_version_id = null;
+    note.audit_reason = null;
+    note.status = NoteStatus.DRAFT; // 删除发布后变为草稿状态
     await this.notesRepository.save(note);
 
     return { message: '已取消发布', note };

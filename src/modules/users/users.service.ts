@@ -346,18 +346,20 @@ export class UsersService {
       return count;
     });
 
-    // 统计每天的累计阅读量
-    const viewsTrend = dates.map((date, index) => {
-      // 计算该日期及之前发布的所有文章的总阅读量
-      const cumulativeViews = notes
+    // 统计互动趋势（点赞+评论+收藏）
+    const interactionTrend = dates.map((date) => {
+      // 计算该日期及之前发布的所有文章的互动总数
+      const interactions = notes
         .filter((note) => {
           if (!note.published_at) return false;
           const publishDate = new Date(note.published_at);
           const currentDate = new Date(date);
           return publishDate <= currentDate;
         })
-        .reduce((sum, note) => sum + note.views, 0);
-      return cumulativeViews;
+        .reduce((sum, note) => {
+          return sum + note.likes_count + note.comments_count + note.favorites_count;
+        }, 0);
+      return interactions;
     });
 
     // 获取文章数据对比（取前10篇）
@@ -392,9 +394,9 @@ export class UsersService {
         dates,
         values: publishTrend,
       },
-      viewsTrend: {
+      interactionTrend: {
         dates,
-        values: viewsTrend,
+        values: interactionTrend,
       },
       topNotes,
       categoryDistribution,

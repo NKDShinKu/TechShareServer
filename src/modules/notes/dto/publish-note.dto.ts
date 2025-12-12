@@ -42,5 +42,10 @@ export class PublishNoteDto {
   @IsBoolean()
   @IsOptional()
   allow_export?: boolean;
+
+  @ApiProperty({ description: '历史版本ID（如果指定，则直接发布该版本而不需审核）', required: false })
+  @IsString()
+  @IsOptional()
+  version_id?: string;
 }
 
