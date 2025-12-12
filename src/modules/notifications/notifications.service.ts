@@ -37,6 +37,7 @@ export class NotificationsService {
   async findAll(
     userId: string,
     type?: NotificationType,
+    types?: NotificationType[],  // 支持查询多种类型
     page = 1,
     limit = 20,
   ) {
@@ -50,7 +51,10 @@ export class NotificationsService {
       .leftJoinAndSelect('notification.comment', 'comment')
       .where('notification.user_id = :userId', { userId });
 
-    if (type) {
+    // 支持查询单个类型或多个类型
+    if (types && types.length > 0) {
+      queryBuilder.andWhere('notification.type IN (:...types)', { types });
+    } else if (type) {
       queryBuilder.andWhere('notification.type = :type', { type });
     }
 

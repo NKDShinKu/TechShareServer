@@ -79,25 +79,41 @@ export class CommentsService {
     await this.notesRepository.save(note);
 
     // 创建通知：评论或回复
-    if (userId !== note.author_id) {
-      if (parent_id) {
-        // 这是回复评论
-        const parentComment = await this.commentsRepository.findOne({
-          where: { id: parent_id },
-        });
-        if (parentComment && parentComment.author_id !== userId) {
-          await this.notificationsService.create(
-            parentComment.author_id,
-            NotificationType.REPLY,
-            '收到新回复',
-            `回复了你的评论：${content.substring(0, 50)}`,
-            userId,
-            note_id,
-            comment.id,
-          );
-        }
-      } else {
-        // 这是评论笔记
+    if (parent_id) {
+      // 这是回复评论
+      const parentComment = await this.commentsRepository.findOne({
+        where: { id: parent_id },
+        relations: ['author'],
+      });
+      
+      // 1. 通知被回复的评论作者（如果不是自己回复自己）
+      if (parentComment && parentComment.author_id !== userId) {
+        await this.notificationsService.create(
+          parentComment.author_id,
+          NotificationType.REPLY,
+          '收到新回复',
+          `回复了你的评论：${content.substring(0, 50)}`,
+          userId,
+          note_id,
+          comment.id,
+        );
+      }
+      
+      // 2. 如果笔记作者不是评论者本人，也不是被回复者，通知笔记作者
+      if (userId !== note.author_id && note.author_id !== parentComment?.author_id) {
+        await this.notificationsService.create(
+          note.author_id,
+          NotificationType.COMMENT,
+          '笔记有新回复',
+          `在你的笔记下回复了评论：${content.substring(0, 50)}`,
+          userId,
+          note_id,
+          comment.id,
+        );
+      }
+    } else {
+      // 这是评论笔记，只通知笔记作者（如果不是自己评论自己的笔记）
+      if (userId !== note.author_id) {
         await this.notificationsService.create(
           note.author_id,
           NotificationType.COMMENT,

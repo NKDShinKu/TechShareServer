@@ -28,15 +28,17 @@ export class NotificationsController {
   @Get()
   @ApiOperation({ summary: '获取通知列表' })
   @ApiQuery({ name: 'type', required: false, enum: NotificationType })
+  @ApiQuery({ name: 'types', required: false, isArray: true, type: String })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   findAll(
     @CurrentUser('id') userId: string,
     @Query('type') type?: NotificationType,
+    @Query('types') types?: NotificationType[],
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
   ) {
-    return this.notificationsService.findAll(userId, type, page, limit);
+    return this.notificationsService.findAll(userId, type, types, page, limit);
   }
 
   @Get('unread-count')
