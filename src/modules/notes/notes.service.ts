@@ -608,7 +608,7 @@ export class NotesService {
 
   // ==================== 获取笔记已发布版本列表（用于回滚） ====================
 
-  async getVersions(userId: string, noteId: string) {
+  async getVersions(userId: string, noteId: string, userRole?: string) {
     const note = await this.notesRepository.findOne({
       where: { id: noteId },
     });
@@ -617,7 +617,8 @@ export class NotesService {
       throw new NotFoundException('笔记不存在');
     }
 
-    if (note.author_id !== userId) {
+    // 管理员可以查看所有笔记的历史版本
+    if (note.author_id !== userId && userRole !== 'ADMIN') {
       throw new ForbiddenException('无权限访问');
     }
 
@@ -670,6 +671,69 @@ export class NotesService {
     await this.notesRepository.save(note);
 
     return { message: '回滚成功' };
+  }
+
+  // ==================== 删除历史版本（下架） ====================
+
+  async removeVersion(userId: string, noteId: string, versionId: string) {
+    const note = await this.notesRepository.findOne({
+      where: { id: noteId },
+    });
+
+    if (!note) {
+      throw new NotFoundException('笔记不存在');
+    }
+
+    if (note.author_id !== userId) {
+      throw new ForbiddenException('无权限操作');
+    }
+
+    const version = await this.noteVersionRepository.findOne({
+      where: { 
+        id: versionId, 
+        note_id: noteId,
+        version_type: VersionType.PUBLISHED,
+      },
+    });
+
+    if (!version) {
+      throw new NotFoundException('版本不存在');
+    }
+
+    // 如果删除的是当前发布版本，需要更新 published_version_id
+    if (note.published_version_id === versionId) {
+      // 查找其他已发布版本
+      const otherVersions = await this.noteVersionRepository.find({
+        where: { 
+          note_id: noteId,
+          version_type: VersionType.PUBLISHED,
+        },
+        order: { created_at: 'DESC' },
+      });
+
+      // 找到最新的其他版本（排除当前要删除的）
+      const nextVersion = otherVersions.find(v => v.id !== versionId);
+
+      if (nextVersion) {
+        // 设置为下一个最新版本
+        note.published_version_id = nextVersion.id;
+      } else {
+        // 没有其他版本了，清空发布状态
+        note.published_version_id = null;
+        note.published_at = null;
+        note.status = NoteStatus.DRAFT;
+      }
+
+      await this.notesRepository.save(note);
+    }
+
+    // 删除版本关联的标签
+    await this.noteVersionTagRepository.delete({ version_id: versionId });
+    
+    // 删除版本记录
+    await this.noteVersionRepository.delete({ id: versionId });
+
+    return { message: '删除成功' };
   }
 
   // ==================== 删除笔记 ====================
@@ -779,7 +843,12 @@ export class NotesService {
       .leftJoinAndSelect('pendingVersion.category', 'pendingCategory');
 
     if (status) {
-      query.where('note.status = :status', { status });
+      // 已发布：显示所有有已发布版本的笔记（即使status不是published，比如正在审核更新）
+      if (status === 'published') {
+        query.where('note.published_version_id IS NOT NULL');
+      } else {
+        query.where('note.status = :status', { status });
+      }
     }
     
     if (search) {

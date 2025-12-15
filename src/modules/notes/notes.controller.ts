@@ -120,8 +120,12 @@ export class NotesController {
   @Get(':id/versions')
   @ApiBearerAuth()
   @ApiOperation({ summary: '获取笔记已发布版本列表（用于回滚）' })
-  getVersions(@CurrentUser('id') userId: string, @Param('id') noteId: string) {
-    return this.notesService.getVersions(userId, noteId);
+  getVersions(
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+    @Param('id') noteId: string,
+  ) {
+    return this.notesService.getVersions(userId, noteId, userRole);
   }
 
   @Post(':id/rollback/:versionId')
@@ -133,6 +137,17 @@ export class NotesController {
     @Param('versionId') versionId: string,
   ) {
     return this.notesService.rollback(userId, noteId, versionId);
+  }
+
+  @Delete(':id/versions/:versionId')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '删除历史版本（下架）' })
+  removeVersion(
+    @CurrentUser('id') userId: string,
+    @Param('id') noteId: string,
+    @Param('versionId') versionId: string,
+  ) {
+    return this.notesService.removeVersion(userId, noteId, versionId);
   }
 
   // 管理员接口
