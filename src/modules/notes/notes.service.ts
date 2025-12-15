@@ -293,7 +293,7 @@ export class NotesService {
 
   // ==================== 取消审核/删除提交 ====================
 
-  async cancelPending(userId: string, noteId: string) {
+  async cancelPending(userId: string, noteId: string, userRole?: string) {
     const note = await this.notesRepository.findOne({
       where: { id: noteId },
     });
@@ -302,7 +302,8 @@ export class NotesService {
       throw new NotFoundException('笔记不存在');
     }
 
-    if (note.author_id !== userId) {
+    // 作者本人或管理员可以取消提交
+    if (note.author_id !== userId && userRole !== 'ADMIN') {
       throw new ForbiddenException('无权限操作');
     }
 

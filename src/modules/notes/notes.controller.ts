@@ -88,9 +88,10 @@ export class NotesController {
   @ApiOperation({ summary: '取消审核/删除提交（清空待审核版本）' })
   cancelPending(
     @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
     @Param('id') id: string,
   ) {
-    return this.notesService.cancelPending(userId, id);
+    return this.notesService.cancelPending(userId, id, userRole);
   }
 
   @Post(':id/unpublish')
