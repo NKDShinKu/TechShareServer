@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Tag } from '../../entities/tag.entity';
+import { NoteVersionTag } from '../../entities/note-version-tag.entity';
 import { CreateTagDto } from './dto/create-tag.dto';
 
 @Injectable()
@@ -13,6 +14,8 @@ export class TagsService {
   constructor(
     @InjectRepository(Tag)
     private tagsRepository: Repository<Tag>,
+    @InjectRepository(NoteVersionTag)
+    private noteVersionTagRepository: Repository<NoteVersionTag>,
   ) {}
 
   async create(createTagDto: CreateTagDto) {
@@ -103,13 +106,11 @@ export class TagsService {
     const tag = await this.findOne(id);
 
     // 检查是否有笔记使用此标签
-    const notesCount = await this.tagsRepository
-      .createQueryBuilder('tag')
-      .leftJoin('tag.noteVersionTags', 'noteVersionTag')
-      .where('tag.id = :id', { id })
-      .getCount();
+    const versionTagsCount = await this.noteVersionTagRepository.count({
+      where: { tag_id: id },
+    });
 
-    if (notesCount > 0) {
+    if (versionTagsCount > 0) {
       throw new ConflictException('该标签下有笔记，无法删除');
     }
 

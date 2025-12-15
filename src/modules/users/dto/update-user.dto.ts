@@ -31,5 +31,11 @@ export class UpdateUserDto {
   @IsOptional()
   @MaxLength(32)
   phone?: string;
+
+  @ApiProperty({ description: '头像URL', required: false })
+  @IsString()
+  @IsOptional()
+  @MaxLength(256)
+  avatar_url?: string;
 }
 

@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { Category } from '../../entities/category.entity';
+import { NoteVersion } from '../../entities/note-version.entity';
 import { CreateCategoryDto } from './dto/create-category.dto';
 
 @Injectable()
@@ -13,6 +14,8 @@ export class CategoriesService {
   constructor(
     @InjectRepository(Category)
     private categoriesRepository: Repository<Category>,
+    @InjectRepository(NoteVersion)
+    private noteVersionRepository: Repository<NoteVersion>,
   ) {}
 
   async create(createCategoryDto: CreateCategoryDto) {
@@ -90,13 +93,11 @@ export class CategoriesService {
     }
 
     // 检查是否有笔记使用此分类
-    const notesCount = await this.categoriesRepository
-      .createQueryBuilder('category')
-      .leftJoin('category.noteVersions', 'version')
-      .where('category.id = :id', { id })
-      .getCount();
+    const versionWithCategory = await this.noteVersionRepository.count({
+      where: { category_id: id },
+    });
 
-    if (notesCount > 0) {
+    if (versionWithCategory > 0) {
       throw new ConflictException('该分类下有笔记，无法删除');
     }
 
