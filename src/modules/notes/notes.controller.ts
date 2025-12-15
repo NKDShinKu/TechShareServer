@@ -44,8 +44,12 @@ export class NotesController {
   @Public()
   @Get(':id')
   @ApiOperation({ summary: '获取笔记详情' })
-  findOne(@Param('id') id: string, @CurrentUser('id') userId?: string) {
-    return this.notesService.findOne(id, userId);
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser('id') userId?: string,
+    @CurrentUser('role') userRole?: string,
+  ) {
+    return this.notesService.findOne(id, userId, userRole);
   }
 
   @Post()

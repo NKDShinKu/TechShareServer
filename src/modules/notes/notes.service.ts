@@ -481,7 +481,7 @@ export class NotesService {
 
   // ==================== 获取单个笔记详情（公开访问） ====================
 
-  async findOne(id: string, userId?: string) {
+  async findOne(id: string, userId?: string, userRole?: string) {
     const note = await this.notesRepository.findOne({
       where: { id },
       relations: [
@@ -497,8 +497,8 @@ export class NotesService {
       throw new NotFoundException('笔记不存在');
     }
 
-    // 检查是否有已发布版本，或者是作者本人
-    if (!note.published_version_id && note.author_id !== userId) {
+    // 检查是否有已发布版本，或者是作者本人，或管理员
+    if (!note.published_version_id && note.author_id !== userId && userRole !== 'ADMIN') {
       throw new ForbiddenException('无权限访问此笔记');
     }
 
@@ -840,7 +840,14 @@ export class NotesService {
       .leftJoinAndSelect('note.pendingVersion', 'pendingVersion')
       .leftJoinAndSelect('note.draftVersion', 'draftVersion')
       .leftJoinAndSelect('publishedVersion.category', 'publishedCategory')
-      .leftJoinAndSelect('pendingVersion.category', 'pendingCategory');
+      .leftJoinAndSelect('pendingVersion.category', 'pendingCategory')
+      .leftJoinAndSelect('draftVersion.category', 'draftCategory')
+      .leftJoinAndSelect('publishedVersion.noteVersionTags', 'publishedTags')
+      .leftJoinAndSelect('publishedTags.tag', 'publishedTag')
+      .leftJoinAndSelect('pendingVersion.noteVersionTags', 'pendingTags')
+      .leftJoinAndSelect('pendingTags.tag', 'pendingTag')
+      .leftJoinAndSelect('draftVersion.noteVersionTags', 'draftTags')
+      .leftJoinAndSelect('draftTags.tag', 'draftTag');
 
     if (status) {
       // 已发布：显示所有有已发布版本的笔记（即使status不是published，比如正在审核更新）
