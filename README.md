@@ -212,3 +212,8 @@ npm run start:prod
 ## 📄 License
 
 [UNLICENSED](LICENSE)
+
+## 🔌 关联项目
+
+- 用户前台: [TechShare Hub](https://github.com/NKDShinKu/TechShareHub)
+- 管理后台: [TechShare Admin](https://github.com/NKDShinKu/TechShareAdmin)
