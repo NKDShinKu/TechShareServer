@@ -36,10 +36,6 @@ VALUES (
   NOW()
 );
 
--- 创建测试用户设置
-INSERT INTO user_settings (user_id, theme, editor_theme, created_at, updated_at)
-SELECT id, 'system', 'blue', NOW(), NOW() FROM users WHERE username = 'testuser';
-
 -- 创建默认分类
 INSERT INTO categories (name, slug, is_public, created_at, updated_at) VALUES
 ('前端开发', 'frontend', 1, NOW(), NOW()),

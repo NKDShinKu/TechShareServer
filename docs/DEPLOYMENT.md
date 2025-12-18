@@ -20,24 +20,37 @@ npm install
 创建 `.env` 文件：
 
 ```env
+# 应用配置
 PORT=3000
 NODE_ENV=development
 
-DB_HOST=localhost
+# 数据库配置
+# 应用配置
+PORT=3000
+NODE_ENV=development
+
+# 数据库配置
+DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_USERNAME=root
-DB_PASSWORD=your_password
+DB_PASSWORD=xxx
 DB_DATABASE=techshare
 
-JWT_SECRET=your-jwt-secret-key
-JWT_EXPIRES_IN=1h
-JWT_REFRESH_SECRET=your-refresh-secret-key
+# JWT 配置
+JWT_SECRET=your-super-secret-jwt-key
+JWT_EXPIRES_IN=6h
+JWT_REFRESH_SECRET=your-super-secret-refresh-key
 JWT_REFRESH_EXPIRES_IN=7d
 
-UPLOAD_DEST=./uploads
-MAX_FILE_SIZE=10485760
+# TypeORM 控制（临时用于避免自动同步导致的冲突）
+TYPEORM_SYNCHRONIZE=true
+TYPEORM_LOGGING=true
 
+# CORS 配置
 CORS_ORIGIN=http://localhost:5173
+
+# 文件上传配置
+UPLOAD_DEST=./uploads
 ```
 
 ### 4. 创建数据库
