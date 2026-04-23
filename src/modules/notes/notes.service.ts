@@ -217,8 +217,13 @@ export class NotesService {
 
       // 删除旧的待审核版本（如果有）
       if (note.pending_version_id) {
-        await this.noteVersionTagRepository.delete({ version_id: note.pending_version_id });
-        await this.noteVersionRepository.delete({ id: note.pending_version_id });
+        const oldPendingVersionId = note.pending_version_id;
+        // 先清空外键引用，避免外键约束错误
+        note.pending_version_id = null;
+        await this.notesRepository.save(note);
+        // 再删除版本记录
+        await this.noteVersionTagRepository.delete({ version_id: oldPendingVersionId });
+        await this.noteVersionRepository.delete({ id: oldPendingVersionId });
       }
 
       // 直接设置为已发布状态
@@ -270,8 +275,13 @@ export class NotesService {
 
     // 删除旧的待审核版本
     if (note.pending_version_id) {
-      await this.noteVersionTagRepository.delete({ version_id: note.pending_version_id });
-      await this.noteVersionRepository.delete({ id: note.pending_version_id });
+      const oldPendingVersionId = note.pending_version_id;
+      // 先清空外键引用，避免外键约束错误
+      note.pending_version_id = null;
+      await this.notesRepository.save(note);
+      // 再删除版本记录
+      await this.noteVersionTagRepository.delete({ version_id: oldPendingVersionId });
+      await this.noteVersionRepository.delete({ id: oldPendingVersionId });
     }
 
     // 从草稿复制创建待审核版本
@@ -312,11 +322,13 @@ export class NotesService {
     }
 
     // 删除待审核版本
-    await this.noteVersionTagRepository.delete({ version_id: note.pending_version_id });
-    await this.noteVersionRepository.delete({ id: note.pending_version_id });
-
-    // 更新笔记状态
+    const oldPendingVersionId = note.pending_version_id;
+    // 先清空外键引用，避免外键约束错误
     note.pending_version_id = null;
+    await this.notesRepository.save(note);
+    // 再删除版本记录
+    await this.noteVersionTagRepository.delete({ version_id: oldPendingVersionId });
+    await this.noteVersionRepository.delete({ id: oldPendingVersionId });
     note.audit_reason = null;
     note.status = this.calculateStatus(note);
     await this.notesRepository.save(note);
@@ -346,11 +358,17 @@ export class NotesService {
     // 清空已发布版本指针和待审核版本指针（不删除版本记录，保留历史）
     // 删除待审核版本（如果有）
     if (note.pending_version_id) {
-      await this.noteVersionTagRepository.delete({ version_id: note.pending_version_id });
-      await this.noteVersionRepository.delete({ id: note.pending_version_id });
+      const oldPendingVersionId = note.pending_version_id;
+      // 先清空外键引用
+      note.pending_version_id = null;
+      note.published_version_id = null;
+      await this.notesRepository.save(note);
+      // 再删除版本记录
+      await this.noteVersionTagRepository.delete({ version_id: oldPendingVersionId });
+      await this.noteVersionRepository.delete({ id: oldPendingVersionId });
+    } else {
+      note.published_version_id = null;
     }
-
-    note.published_version_id = null;
     note.published_at = null;
     note.pending_version_id = null;
     note.audit_reason = null;
@@ -394,26 +412,31 @@ export class NotesService {
         VersionType.PUBLISHED,
       );
 
-      // 删除待审核版本
+      // 先使用 update 方法清空外键引用，避免 TypeORM 的缓存问题
+      await this.notesRepository.update(note.id, {
+        pending_version_id: null,
+        published_version_id: publishedVersion.id,
+        audit_reason: null,
+        status: NoteStatus.PUBLISHED,
+        published_at: new Date(),
+        auditor_id: auditorId,
+      });
+      
+      // 再删除待审核版本
       await this.noteVersionTagRepository.delete({ version_id: pendingVersionId });
       await this.noteVersionRepository.delete({ id: pendingVersionId });
 
-      // 更新笔记状态
-      note.published_version_id = publishedVersion.id;
-      note.pending_version_id = null;
-      note.audit_reason = null;
-      note.status = NoteStatus.PUBLISHED;
-      note.published_at = new Date();
+      // 重新加载 note 以返回最新数据
+      const updatedNote = await this.notesRepository.findOne({ where: { id: note.id } });
+      return { message: '审核完成', note: updatedNote };
       
     } else {
       // 审核拒绝
       note.status = NoteStatus.REJECTED;
       note.audit_reason = audit_reason || '审核未通过';
+      await this.notesRepository.save(note);
+      return { message: '审核完成', note };
     }
-
-    await this.notesRepository.save(note);
-
-    return { message: '审核完成', note };
   }
 
   // ==================== 获取笔记列表（公开） ====================
